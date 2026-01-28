@@ -233,7 +233,12 @@ const ORDER_SUMMARY = (order) => `
           <tr>
             <td style="padding:6px 0; color:#555;">Payment:</td>
             <td style="padding:6px 0; text-align:right;">
-              <b>${order.paymentMethod}</b> • ${order.paymentStatus}
+              <b>${order.paymentMethod}</b> •
+<span style="color:${
+order.paymentStatus === 'PAID' ? '#16a34a' : '#d97706'
+}">
+${order.paymentStatus === 'PAID' ? 'Paid ✔️' : 'Pending'}
+</span>
             </td>
           </tr>
         </table>

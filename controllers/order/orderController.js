@@ -1,7 +1,7 @@
 // controllers/order/orderController.js
 const Orders = require("../../models/Order");
 const Products = require("../../models/Product");
-const Users = require("../../models/User"); // ✅ sahi model
+const Users = require("../../models/User");
 
 const {
   sendOrderEmailToCustomer,
@@ -10,7 +10,7 @@ const {
 
 const sendCancelRequestEmailToOwner = require("../../utils/sendCancelRequestEmail");
 
-const { isCodAllowedForPincode } = require("../../config/codConfig"); // 👈 NEW
+const { isCodAllowedForPincode } = require("../../config/codConfig");
 
 const CANCELLABLE_STATUSES = ["PLACED", "CONFIRMED", "PROCESSING"];
 
@@ -25,13 +25,13 @@ const calculateTotals = (items) => {
   });
 
   const discountTotal = mrpTotal - itemsTotal;
-  const shippingFee = itemsTotal >= 999 ? 0 : 60; // example: 999+ free
+  const shippingFee = itemsTotal >= 999 ? 0 : 60;
   const grandTotal = itemsTotal + shippingFee;
 
   return { mrpTotal, itemsTotal, discountTotal, shippingFee, grandTotal };
 };
 
-// 🔹 helper: compare 2 addresses roughly same hain ya nahi
+// 🔹 helper: compare 2 addresses
 const isSameAddress = (a, b) => {
   if (!a || !b) return false;
 
@@ -44,7 +44,7 @@ const isSameAddress = (a, b) => {
   );
 };
 
-// 🔹 helper: order ke shippingAddress ko user.addresses me save karna (agar new hai)
+// 🔹 helper: save shipping address to user
 const ensureAddressSavedForUser = async (userId, shippingAddress) => {
   try {
     if (!userId || !shippingAddress) return;
@@ -56,7 +56,6 @@ const ensureAddressSavedForUser = async (userId, shippingAddress) => {
       user.addresses = [];
     }
 
-    // already similar address exist?
     const exists = user.addresses.some((addr) =>
       isSameAddress(addr, shippingAddress)
     );
@@ -84,7 +83,7 @@ const ensureAddressSavedForUser = async (userId, shippingAddress) => {
   }
 };
 
-// 🔹 helper: product image safe fallback (kabhi empty na rahe)
+// 🔹 helper: product image
 const getProductImage = (prod) => {
   if (!prod) return "https://via.placeholder.com/400x600?text=HOI";
   return (
@@ -95,7 +94,7 @@ const getProductImage = (prod) => {
   );
 };
 
-// 🔹 helper: item se productId safely nikaalo
+// 🔹 helper: get productId
 const getItemProductId = (item) => {
   if (!item) return null;
   return (
@@ -107,12 +106,27 @@ const getItemProductId = (item) => {
   );
 };
 
-// ✅ POST /v1/orders – user creates order (checkout se)
+// ✅ POST /v1/orders – CREATE ORDER (FIXED VERSION)
 exports.createOrder = async (req, res) => {
   try {
     const userId = req.userId;
 
-    const { items, shippingAddress, paymentMethod, notes } = req.body;
+    // 🔥 CRITICAL: Accept paymentStatus, razorpayOrderId, razorpayPaymentId from request
+    const { 
+      items, 
+      shippingAddress, 
+      paymentMethod, 
+      notes,
+      paymentStatus,        // 🔥 NEW - Frontend sends this
+      razorpayOrderId,      // 🔥 NEW
+      razorpayPaymentId     // 🔥 NEW
+    } = req.body;
+
+    console.log("📥 Received createOrder request:");
+    console.log("- paymentMethod:", paymentMethod);
+    console.log("- paymentStatus from frontend:", paymentStatus);
+    console.log("- razorpayOrderId:", razorpayOrderId);
+    console.log("- razorpayPaymentId:", razorpayPaymentId);
 
     if (!items || !items.length) {
       return res.status(400).json({ message: "No items in order" });
@@ -136,7 +150,7 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ message: "Invalid payment method" });
     }
 
-    // 🔴 NEW: COD sirf Dehradun ke pincodes par allowed
+    // COD check
     if (paymentMethod === "COD") {
       const pin = String(shippingAddress.pincode).trim();
 
@@ -149,7 +163,7 @@ exports.createOrder = async (req, res) => {
       }
     }
 
-    // 1) get product IDs safely
+    // 1) get product IDs
     const productIds = items.map((i) => getItemProductId(i));
 
     if (productIds.some((id) => !id)) {
@@ -159,7 +173,7 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    // 2) get product details from DB
+    // 2) get products from DB
     const products = await Products.find({ _id: { $in: productIds } });
 
     const missingProducts = [];
@@ -179,7 +193,7 @@ exports.createOrder = async (req, res) => {
       return {
         product: product._id,
         name: product.name,
-        image: getProductImage(product), // ✅ always non-empty
+        image: getProductImage(product),
         color: item.color,
         size:
           typeof item.size === "string"
@@ -193,7 +207,6 @@ exports.createOrder = async (req, res) => {
       };
     });
 
-    // agar koi product missing hai
     if (missingProducts.length > 0) {
       console.error("Missing products in order:", missingProducts);
       return res.status(400).json({
@@ -211,7 +224,21 @@ exports.createOrder = async (req, res) => {
 
     const totals = calculateTotals(validOrderItems);
 
-    // 3) order create
+    // 🔥 CRITICAL: Determine final payment status based on frontend input
+    let finalPaymentStatus = "PENDING";  // default
+    
+    if (paymentMethod === "ONLINE" && paymentStatus === "PAID") {
+      // Frontend has already verified payment via Razorpay
+      finalPaymentStatus = "PAID";
+      console.log("✅ Payment already verified by frontend, setting status to PAID");
+    } else if (paymentMethod === "COD") {
+      finalPaymentStatus = "PENDING";
+      console.log("📦 COD order, payment status remains PENDING");
+    }
+
+    console.log("💾 Creating order with paymentStatus:", finalPaymentStatus);
+
+    // 3) Create order
     const newOrder = await Orders.create({
       user: userId,
       items: validOrderItems,
@@ -227,28 +254,49 @@ exports.createOrder = async (req, res) => {
         addressType: shippingAddress.addressType || "home",
       },
       paymentMethod,
-      paymentStatus: "PENDING", // ONLINE ke liye webhook se PAID karoge
+      paymentStatus: finalPaymentStatus,  // 🔥 FIXED - Use determined status
       status: "PLACED",
+      razorpayOrderId: razorpayOrderId || undefined,
+      razorpayPaymentId: razorpayPaymentId || undefined,
       ...totals,
       totalSavings: totals.discountTotal,
       notes,
     });
 
-    // 4) shippingAddress ko user ke addresses[] me bhi save karo (agar new hai)
+    console.log("✅ Order created:", newOrder._id);
+    console.log("   - Payment Method:", newOrder.paymentMethod);
+    console.log("   - Payment Status:", newOrder.paymentStatus);
+
+    // 4) Save address to user
     await ensureAddressSavedForUser(userId, shippingAddress);
 
-    // 5) user details for email
+    // 5) Get user details for email
     const user = await Users.findById(userId).select("name email");
     const orderForEmail = {
       ...newOrder.toObject(),
       user: user ? { name: user.name, email: user.email } : null,
     };
 
-    // 🔔 Customer: "Order placed"
-    await sendOrderEmailToCustomer(orderForEmail, "PLACED");
+    // 6) 🔥 SEND EMAILS BASED ON PAYMENT STATUS
+    try {
+      if (finalPaymentStatus === "PAID") {
+        // Online payment already verified
+        console.log("📧 Sending PAYMENT_SUCCESS and PLACED emails...");
+        await sendOrderEmailToCustomer(orderForEmail, "PAYMENT_SUCCESS");
+        await sendOrderEmailToCustomer(orderForEmail, "PLACED");
+      } else {
+        // COD or pending payment
+        console.log("📧 Sending PLACED email...");
+        await sendOrderEmailToCustomer(orderForEmail, "PLACED");
+      }
 
-    // 🔔 Admin(s): "Order placed"
-    await sendNewOrderEmailToOwner(orderForEmail, "PLACED");
+      // Admin notification
+      await sendNewOrderEmailToOwner(orderForEmail);
+      console.log("📧 Admin notification sent");
+    } catch (emailErr) {
+      console.error("Email sending error:", emailErr);
+      // Don't fail order creation if email fails
+    }
 
     return res.status(201).json(newOrder);
   } catch (err) {
@@ -257,7 +305,7 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// ✅ GET /v1/orders/my-orders – current user history (My Orders page)
+// ✅ GET /v1/orders/my-orders – current user history
 exports.getMyOrders = async (req, res) => {
   try {
     const userId = req.userId;
@@ -286,7 +334,6 @@ exports.requestCancelOrder = async (req, res) => {
         .json({ message: "Cancellation reason is required" });
     }
 
-    // ⭐ sirf apna order
     const order = await Orders.findOne({ _id: orderId, user: userId })
       .populate("user", "name email")
       .exec();
@@ -316,7 +363,6 @@ exports.requestCancelOrder = async (req, res) => {
       });
     }
 
-    // 🔹 flags & reason
     order.cancelRequested = true;
     order.cancelReason = reason;
     order.cancelReasonNote = reasonText || null;
@@ -324,7 +370,6 @@ exports.requestCancelOrder = async (req, res) => {
 
     await order.save();
 
-    // 🔔 Admin ko mail
     try {
       await sendCancelRequestEmailToOwner(order.toObject());
     } catch (emailErr) {
@@ -344,7 +389,7 @@ exports.requestCancelOrder = async (req, res) => {
   }
 };
 
-// ✅ GET /v1/orders/:id – detail (user or admin)
+// ✅ GET /v1/orders/:id – detail
 exports.getOrderById = async (req, res) => {
   try {
     const orderId = req.params.id;
@@ -355,7 +400,6 @@ exports.getOrderById = async (req, res) => {
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // user can only see own order; admin can see all
     if (
       req.userRole !== "admin" &&
       order.user &&
@@ -371,7 +415,7 @@ exports.getOrderById = async (req, res) => {
   }
 };
 
-// ✅ ADMIN: GET /v1/orders/admin/list?status=&page=&limit=
+// ✅ ADMIN: GET /v1/orders/admin/list
 exports.adminGetOrders = async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
@@ -435,16 +479,13 @@ exports.adminUpdateOrderStatus = async (req, res) => {
 
     const oldStatus = order.status;
 
-    // update status & payment
     if (status) {
       order.status = status;
 
-      // COD: delivered hone par paymentStatus = PAID
       if (order.paymentMethod === "COD" && status === "DELIVERED") {
         order.paymentStatus = "PAID";
       }
 
-      // 🔹 AGAR ADMIN CANCEL KAR RAHA HAI
       if (status === "CANCELLED") {
         order.cancelApprovedAt = new Date();
         order.cancelRequested = false;
@@ -456,7 +497,6 @@ exports.adminUpdateOrderStatus = async (req, res) => {
           order.paymentStatus = "PENDING";
         }
 
-        // 🔹 STOCK ROLLBACK
         if (oldStatus !== "CANCELLED") {
           if (Array.isArray(order.items) && order.items.length > 0) {
             for (const item of order.items) {
@@ -494,11 +534,9 @@ exports.adminUpdateOrderStatus = async (req, res) => {
 
     await order.save();
 
-    // ✅ Email: sirf customer ko status update
     if (status) {
       const orderObj = order.toObject();
       await sendOrderEmailToCustomer(orderObj, status);
-      // ❌ yahan sendNewOrderEmailToOwner nahin call karna
     }
 
     return res.json(order);

@@ -31,6 +31,13 @@ const seoSchema = new mongoose.Schema(
 const productSchema = new mongoose.Schema(
   {
     // BASIC INFO
+    
+productCode: {
+  type: String,
+  required: true,
+  unique: true,
+  trim: true,
+},
     name: { type: String, required: true, trim: true },
     slug: { type: String, unique: true, sparse: true, trim: true },
    brand: { type: String, required: true },

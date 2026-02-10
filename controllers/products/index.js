@@ -99,6 +99,9 @@ exports.createProduct = async (req, res) => {
     }
 
     // validations
+    if (!data.productCode) {
+  return res.status(400).json({ message: "Product code is required" });
+}
     if (!data.name) {
       return res.status(400).json({ message: "Product name is required" });
     }
@@ -108,6 +111,7 @@ exports.createProduct = async (req, res) => {
     }
 
     // 👉 normalize price numbers
+    data.productCode = data.productCode.trim().toUpperCase();
     data.price.mrp = Number(data.price.mrp) || 0;
     data.price.discountPercent = Number(data.price.discountPercent) || 0;
     data.price.sale = Number(data.price.sale) || 0;
@@ -393,7 +397,10 @@ exports.updateProduct = async (req, res) => {
         data.shippingAndReturns = JSON.parse(data.shippingAndReturns);
       } catch (e) {}
     }
-
+    //product name
+if (data.productCode) {
+  data.productCode = data.productCode.trim().toUpperCase();
+}
     // image update
     if (req.files?.mainImage?.[0]) {
       data.mainImage = `/uploads/products/${req.files.mainImage[0].filename}`;

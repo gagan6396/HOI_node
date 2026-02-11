@@ -87,6 +87,13 @@ exports.createProduct = async (req, res) => {
       }
     }
 
+    if (data.type) {
+  const allowedTypes = ["regular", "new-arrival", "trendy", "sale"];
+  if (!allowedTypes.includes(data.type)) {
+    data.type = "regular";
+  }
+}
+
     // 👉 handle images from multer
     if (req.files?.mainImage?.[0]) {
       data.mainImage = `/uploads/products/${req.files.mainImage[0].filename}`;
@@ -186,7 +193,8 @@ exports.getProducts = async (req, res) => {
       isFeatured,
       brand,
       gender,
-      size, // 👈 NEW: size filter from query (?size=M,L,XL)
+      size,
+      type,
     } = req.query;
 
     page = Number(page);
@@ -198,6 +206,9 @@ exports.getProducts = async (req, res) => {
     if (search) {
       filter.name = { $regex: search, $options: "i" };
     }
+if (type) {
+  filter.type = type;
+}
 
     // 🏷️ Category (single or multiple: ?category=Bra,Nightwear)
     if (category) {
@@ -384,6 +395,14 @@ exports.updateProduct = async (req, res) => {
       } catch (e) {}
     }
 
+    if (data.type) {
+  const allowedTypes = ["regular", "new-arrival", "trendy", "sale"];
+  if (!allowedTypes.includes(data.type)) {
+    data.type = "regular";
+  }
+}
+
+
     // ⭐ NEW: features
     if (data.features) {
       try {
@@ -528,6 +547,302 @@ exports.getProductsByBrand = async (req, res) => {
     console.error("Get Products By Brand Error:", err);
     return res.status(500).json({
       message: "Failed to get products by brand",
+      error: err.message,
+    });
+  }
+};
+
+
+// Add this to your products controller: controllers/products/index.js
+
+// ✅ GET Color Variants for a Product
+exports.getColorVariants = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // First, get the current product
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Build filter to find similar products
+    const filter = {
+      _id: { $ne: id }, // Exclude current product
+      status: "active", // Only active products
+    };
+
+    // Match by category and brand (required)
+    if (product.category) {
+      filter.category = product.category;
+    }
+    if (product.brand) {
+      filter.brand = { $regex: `^${product.brand}$`, $options: "i" };
+    }
+
+    // Optional: match subcategory for more precise results
+    if (product.subcategory) {
+      filter.subcategory = product.subcategory;
+    }
+
+    // Find similar products
+    const similarProducts = await Product.find(filter)
+      .select("_id name colors mainImage price")
+      .limit(20);
+
+    // Build color variants map
+    const colorVariants = [];
+
+    // Add current product's colors
+    if (Array.isArray(product.colors)) {
+      product.colors.forEach((color) => {
+        colorVariants.push({
+          color,
+          productId: product._id,
+          productName: product.name,
+          mainImage: product.mainImage,
+          price: product.price,
+          isCurrent: true,
+        });
+      });
+    }
+
+    // Add colors from similar products
+    similarProducts.forEach((similar) => {
+      if (Array.isArray(similar.colors)) {
+        similar.colors.forEach((color) => {
+          // Check if this color already exists
+          const exists = colorVariants.some((v) => v.color === color);
+          if (!exists) {
+            colorVariants.push({
+              color,
+              productId: similar._id,
+              productName: similar.name,
+              mainImage: similar.mainImage,
+              price: similar.price,
+              isCurrent: false,
+            });
+          }
+        });
+      }
+    });
+
+    return res.json({
+      productId: id,
+      productName: product.name,
+      category: product.category,
+      brand: product.brand,
+      colorVariants,
+    });
+  } catch (err) {
+    console.error("Get Color Variants Error:", err);
+    return res.status(500).json({
+      message: "Failed to get color variants",
+      error: err.message,
+    });
+  }
+};
+
+// ✅ ALTERNATIVE: Get products by similar attributes
+exports.getSimilarProducts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 10 } = req.query;
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const filter = {
+      _id: { $ne: id },
+      status: "active",
+    };
+
+    // Match by multiple criteria
+    if (product.category) filter.category = product.category;
+    if (product.brand) {
+      filter.brand = { $regex: `^${product.brand}$`, $options: "i" };
+    }
+    if (product.subcategory) filter.subcategory = product.subcategory;
+    if (product.gender) filter.gender = product.gender;
+
+    const similar = await Product.find(filter)
+      .select("_id name brand colors sizes mainImage price")
+      .limit(Number(limit))
+      .sort({ createdAt: -1 });
+
+    return res.json({
+      currentProduct: {
+        id: product._id,
+        name: product.name,
+        colors: product.colors,
+      },
+      similarProducts: similar,
+      count: similar.length,
+    });
+  } catch (err) {
+    console.error("Get Similar Products Error:", err);
+    return res.status(500).json({
+      message: "Failed to get similar products",
+      error: err.message,
+    });
+  }
+};
+
+// Add this to your controllers/products/index.js
+
+// ✅ GET Products Grouped by Base Product Code
+exports.getProductsGrouped = async (req, res) => {
+  try {
+    let {
+      page = 1,
+      limit = 10,
+      search,
+      category,
+      status = "active",
+      isFeatured,
+      brand,
+      gender,
+      type,
+    } = req.query;
+
+    page = Number(page);
+    limit = Number(limit);
+
+    const filter = { status };
+
+    // Apply filters
+    if (search) {
+      filter.name = { $regex: search, $options: "i" };
+    }
+
+    if (type) {
+      filter.type = type;
+    }
+
+    if (category) {
+      const categories = category
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
+
+      if (categories.length === 1) {
+        filter.category = categories[0];
+      } else if (categories.length > 1) {
+        filter.category = { $in: categories };
+      }
+    }
+
+    if (gender) {
+      filter.gender = { $regex: `^${gender}$`, $options: "i" };
+    }
+
+    if (typeof isFeatured !== "undefined") {
+      filter.isFeatured = isFeatured === "true";
+    }
+
+    if (brand) {
+      const brands = brand
+        .split(",")
+        .map((b) => b.trim())
+        .filter(Boolean);
+
+      if (brands.length === 1) {
+        filter.brand = { $regex: `^${brands[0]}$`, $options: "i" };
+      } else if (brands.length > 1) {
+        filter.$or = (filter.$or || []).concat(
+          brands.map((b) => ({
+            brand: { $regex: `^${b}$`, $options: "i" },
+          }))
+        );
+      }
+    }
+
+    // Get all products matching filters
+    const allProducts = await Product.find(filter).sort({ createdAt: -1 });
+
+    // Group products by base product code
+    const groupedMap = new Map();
+
+    allProducts.forEach((product) => {
+      if (!product.productCode) return;
+
+      // Extract base code (everything before last hyphen)
+      // Example: "HOI-9038-Blue" → "HOI-9038"
+      const parts = product.productCode.split("-");
+      const baseCode = parts.slice(0, -1).join("-") || product.productCode;
+
+      if (!groupedMap.has(baseCode)) {
+        groupedMap.set(baseCode, {
+          baseCode,
+          mainProduct: product,
+          variants: [product],
+          colors: [],
+        });
+      } else {
+        groupedMap.get(baseCode).variants.push(product);
+      }
+    });
+
+    // Process each group
+    const groups = Array.from(groupedMap.values()).map((group) => {
+      // Collect all unique colors from variants
+      const colorMap = new Map();
+
+      group.variants.forEach((variant) => {
+        if (Array.isArray(variant.colors)) {
+          variant.colors.forEach((color) => {
+            if (!colorMap.has(color)) {
+              colorMap.set(color, {
+                color,
+                productId: variant._id,
+                productCode: variant.productCode,
+                mainImage: variant.mainImage,
+                price: variant.price,
+                totalStock: variant.totalStock,
+              });
+            }
+          });
+        }
+      });
+
+      return {
+        baseCode: group.baseCode,
+        name: group.mainProduct.name,
+        brand: group.mainProduct.brand,
+        category: group.mainProduct.category,
+        subcategory: group.mainProduct.subcategory,
+        gender: group.mainProduct.gender,
+        mainImage: group.mainProduct.mainImage,
+        price: group.mainProduct.price,
+        mainProductId: group.mainProduct._id,
+        totalVariants: group.variants.length,
+        colors: Array.from(colorMap.values()),
+        isFeatured: group.mainProduct.isFeatured,
+        type: group.mainProduct.type,
+      };
+    });
+
+    // Pagination
+    const total = groups.length;
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedGroups = groups.slice(startIndex, endIndex);
+
+    return res.json({
+      data: paginatedGroups,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err) {
+    console.error("Get Products Grouped Error:", err);
+    return res.status(500).json({
+      message: "Failed to get grouped products",
       error: err.message,
     });
   }

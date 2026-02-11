@@ -72,6 +72,14 @@ productCode: {
     },
     isFeatured: { type: Boolean, default: false },
 
+    // PRODUCT TYPE (for homepage sections)
+type: {
+  type: String,
+  enum: ["regular", "new-arrival", "trendy", "sale"],
+  default: "regular",
+},
+
+
     // FABRIC & ATTRIBUTES
     fabric: { type: String, trim: true },
     composition: { type: String, trim: true },

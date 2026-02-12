@@ -10,6 +10,7 @@ const testRoutes = require("./testRoutes");
 const shippingRoutes = require("./shippingRoutes");
 const blogRoutes = require("./blogRoutes");
 const paymentRoutes = require("./paymentRoutes");
+const wishlistRoutes = require("./wishlistRoutes");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -18,8 +19,7 @@ router.use("/orders", orderRoutes);
 router.use("/test", testRoutes);
 router.use("/shipping", shippingRoutes);
 router.use("/payment", paymentRoutes);
-
-// ✅ All blog APIs under /v1/myblogs
+router.use("/wishlist", wishlistRoutes);
 router.use("/myblogs", blogRoutes);
 
 module.exports = router;

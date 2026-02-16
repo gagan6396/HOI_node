@@ -20,6 +20,23 @@ exports.createProduct = async (req, res) => {
 
     let data = { ...req.body };
 
+    // ✅ Validate similarColor
+if (data.similarColor) {
+  const allowedColors = [
+    "black","grey","navy","blue","teal",
+    "green","orange","red","pink","yellow"
+  ];
+
+  data.similarColor = data.similarColor.toLowerCase().trim();
+
+  if (!allowedColors.includes(data.similarColor)) {
+    return res.status(400).json({
+      message: "Invalid similar color selected",
+    });
+  }
+}
+
+
     // 👉 parse stringified JSON fields from FormData
     if (data.price) {
       try {

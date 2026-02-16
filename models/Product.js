@@ -49,6 +49,24 @@ productCode: {
     },
     category: { type: String, trim: true },
     subcategory: { type: String, trim: true },
+    similarColor: {
+  type: String,
+  enum: [
+    "black",
+    "grey",
+    "navy",
+    "blue",
+    "teal",
+    "green",
+    "orange",
+    "red",
+    "pink",
+    "yellow",
+  ],
+  lowercase: true,
+  trim: true,
+},
+
     sku: { type: String, trim: true },
     taxSlab: { type: String, trim: true },
 

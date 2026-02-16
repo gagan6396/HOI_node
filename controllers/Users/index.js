@@ -61,3 +61,33 @@ exports.deleteUser = async (req, res) => {
     });
   }
 };
+
+// ✅ Update logged-in user profile
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const { name, phone, address } = req.body;
+
+    const updatedUser = await Users.findByIdAndUpdate(
+      req.userId,
+      {
+        name,
+        phone,
+        address,
+      },
+      { new: true }
+    ).select("-password -__v");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("Update profile error:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};

@@ -131,6 +131,8 @@ dist
 # public
 public
 
+# Uploads
+uploads/
 # package-lock-json
 package-lock.json
 

@@ -11,6 +11,7 @@ const shippingRoutes = require("./shippingRoutes");
 const blogRoutes = require("./blogRoutes");
 const paymentRoutes = require("./paymentRoutes");
 const wishlistRoutes = require("./wishlistRoutes");
+const cartRoutes = require("./cartRoutes"); // ← ADD THIS
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -21,5 +22,6 @@ router.use("/shipping", shippingRoutes);
 router.use("/payment", paymentRoutes);
 router.use("/wishlist", wishlistRoutes);
 router.use("/myblogs", blogRoutes);
+router.use("/cart", cartRoutes); // ← ADD THIS
 
 module.exports = router;

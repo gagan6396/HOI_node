@@ -45,7 +45,7 @@ const emailWrapper = (content, preheader = "") => `
             <!-- FOOTER -->
             <tr>
               <td align="center" style="background-color:#fff7fc; padding:14px 10px 18px; font-family:Arial, sans-serif;">
-                <p style="margin:4px 0; font-size:12px; color:#777;">Need help? We’re here for you 💌</p>
+                <p style="margin:4px 0; font-size:12px; color:#777;">Need help? We're here for you 💌</p>
                 <p style="margin:4px 0; font-size:12px; color:#777;">Email: <b>support@hoi.in</b></p>
                 <p style="margin:4px 0; font-size:11px; color:#aaa;">© ${new Date().getFullYear()} House of Intimacy. All rights reserved.</p>
               </td>
@@ -84,7 +84,7 @@ const CTA_BUTTON = (text, url) => `
   </table>
 `;
 
-// 🔹 ITEMS TABLE (PRODUCT NAME, PRICE, SIZE, COLOR DOT, BRAND, QTY)
+// 🔹 ITEMS TABLE (PRODUCT NAME, PRODUCT CODE, PRICE, SIZE, COLOR DOT, BRAND, QTY)
 const ITEMS_TABLE = (order) => {
   if (!order.items || !order.items.length) return "";
 
@@ -92,6 +92,13 @@ const ITEMS_TABLE = (order) => {
     .map((item) => {
       const brandLine = item.brand
         ? `<div style="font-size:11px; color:#777;">Brand: ${item.brand}</div>`
+        : "";
+
+      // ✅ Product Code line
+      const productCodeLine = item.productCode
+        ? `<div style="font-size:11px; color:#999; font-family:monospace; margin-top:2px;">
+             Code: ${item.productCode}
+           </div>`
         : "";
 
       const mrpLine =
@@ -126,6 +133,7 @@ const ITEMS_TABLE = (order) => {
               ${item.name}
             </div>
             ${brandLine}
+            ${productCodeLine}
             <div style="font-size:11px; color:#555; margin-top:2px;">
               ${sizeLabel} &nbsp; • &nbsp; ${colorLabel}
             </div>
@@ -234,11 +242,11 @@ const ORDER_SUMMARY = (order) => `
             <td style="padding:6px 0; color:#555;">Payment:</td>
             <td style="padding:6px 0; text-align:right;">
               <b>${order.paymentMethod}</b> •
-<span style="color:${
-order.paymentStatus === 'PAID' ? '#16a34a' : '#d97706'
-}">
-${order.paymentStatus === 'PAID' ? 'Paid ✔️' : 'Pending'}
-</span>
+              <span style="color:${
+                order.paymentStatus === 'PAID' ? '#16a34a' : '#d97706'
+              }">
+                ${order.paymentStatus === 'PAID' ? 'Paid ✔️' : 'Pending'}
+              </span>
             </td>
           </tr>
         </table>
@@ -299,16 +307,16 @@ const TEMPLATES = {
       </p>
       <p style="font-size:13px; color:#555; line-height:1.6; margin:0 0 10px;">
         Thank you for choosing <b>House of Intimacy</b> 💗<br/>
-        We’ve received your order and our team is already on it! 
-        You’ll get updates at every important step – from confirmation to shipping to delivery.
+        We've received your order and our team is already on it! 
+        You'll get updates at every important step – from confirmation to shipping to delivery.
       </p>
       <p style="font-size:13px; color:#555; line-height:1.6; margin:0 0 6px;">
-        Here’s what happens next:
+        Here's what happens next:
       </p>
       <ul style="font-size:13px; color:#555; padding-left:18px; margin:0 0 10px;">
         <li>Your order will be confirmed and queued for packing.</li>
-        <li>Once packed, it’ll be handed over to our delivery partner.</li>
-        <li>We’ll notify you again when it’s shipped and out for delivery.</li>
+        <li>Once packed, it'll be handed over to our delivery partner.</li>
+        <li>We'll notify you again when it's shipped and out for delivery.</li>
       </ul>
 
       ${ITEMS_TABLE(order)}
@@ -335,7 +343,7 @@ const TEMPLATES = {
         Our team will carefully verify your styles, sizes, and colors so your HOI experience feels perfect.
       </p>
       <p style="font-size:13px; color:#555; margin:0 0 8px;">
-        You’ll receive another update when your parcel has been <b>shipped</b>.
+        You'll receive another update when your parcel has been <b>shipped</b>.
       </p>
 
       ${ITEMS_TABLE(order)}
@@ -352,7 +360,7 @@ const TEMPLATES = {
     emailWrapper(
       `
       <h2 style="color:${TEXT_COLOR}; font-size:20px; margin:0 0 8px;">
-        We’re preparing your package 🛍️
+        We're preparing your package 🛍️
       </h2>
       <p style="font-size:13px; color:#555; margin:0 0 8px;">
         Hi <b>${name}</b>,
@@ -362,7 +370,7 @@ const TEMPLATES = {
         Each piece is checked for quality, comfort and finish before it leaves us, so your unboxing feels truly special.
       </p>
       <p style="font-size:13px; color:#555; margin:0 0 8px;">
-        As soon as it is shipped, we’ll send you another update.
+        As soon as it is shipped, we'll send you another update.
       </p>
 
       ${ITEMS_TABLE(order)}
@@ -384,7 +392,7 @@ const TEMPLATES = {
       </p>
       <p style="font-size:13px; color:#555; line-height:1.6; margin:0 0 10px;">
         Your HOI parcel has been <b>shipped</b> and is now with our delivery partner.
-        It’s on its way to you – we can’t wait for you to try everything on!
+        It's on its way to you – we can't wait for you to try everything on!
       </p>
       <p style="font-size:13px; color:#555; margin:0 0 8px;">
         You can check the latest status anytime from your account.
@@ -411,7 +419,7 @@ const TEMPLATES = {
       </p>
       <p style="font-size:13px; color:#555; line-height:1.6; margin:0 0 10px;">
         Your HOI order is <b>out for delivery</b> and should reach you today.
-        Please keep your phone reachable and, if it’s a COD order, the amount handy for a smooth delivery.
+        Please keep your phone reachable and, if it's a COD order, the amount handy for a smooth delivery.
       </p>
 
       ${ITEMS_TABLE(order)}
@@ -437,7 +445,7 @@ const TEMPLATES = {
         Your order has been <b>delivered</b> – we hope your new favourites make you feel confident, comfortable and celebrated 💫
       </p>
       <p style="font-size:13px; color:#555; margin:0 0 8px;">
-        If something doesn’t feel right with your order, just reach out to us and we’ll be happy to help.
+        If something doesn't feel right with your order, just reach out to us and we'll be happy to help.
       </p>
 
       ${ITEMS_TABLE(order)}
@@ -489,7 +497,7 @@ const TEMPLATES = {
         Hi <b>${name}</b>,
       </p>
       <p style="font-size:13px; color:#555; line-height:1.6; margin:0 0 10px;">
-        We’ve successfully received your payment for this order. 
+        We've successfully received your payment for this order. 
         Your items will now move into <b>confirmation</b> and <b>processing</b>.
       </p>
 
@@ -522,9 +530,7 @@ const sendOrderEmailToCustomer = async (order, event) => {
     }
 
     const html = templateFn(name, order);
-    const subject = `HOI – Order ${event.replace(/_/g, " ")} (${getOrderLabel(
-      order
-    )})`;
+    const subject = `HOI – Order ${event.replace(/_/g, " ")} (${getOrderLabel(order)})`;
 
     await transporter.sendMail({
       from: `"House of Intimacy" <${process.env.ADMIN_EMAIL}>`,

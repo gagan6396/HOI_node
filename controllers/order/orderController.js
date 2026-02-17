@@ -106,20 +106,19 @@ const getItemProductId = (item) => {
   );
 };
 
-// ✅ POST /v1/orders – CREATE ORDER (FIXED VERSION)
+// ✅ POST /v1/orders – CREATE ORDER
 exports.createOrder = async (req, res) => {
   try {
     const userId = req.userId;
 
-    // 🔥 CRITICAL: Accept paymentStatus, razorpayOrderId, razorpayPaymentId from request
-    const { 
-      items, 
-      shippingAddress, 
-      paymentMethod, 
+    const {
+      items,
+      shippingAddress,
+      paymentMethod,
       notes,
-      paymentStatus,        // 🔥 NEW - Frontend sends this
-      razorpayOrderId,      // 🔥 NEW
-      razorpayPaymentId     // 🔥 NEW
+      paymentStatus,
+      razorpayOrderId,
+      razorpayPaymentId,
     } = req.body;
 
     console.log("📥 Received createOrder request:");
@@ -179,7 +178,9 @@ exports.createOrder = async (req, res) => {
     const missingProducts = [];
     const orderItems = items.map((item, idx) => {
       const pid = productIds[idx];
-      const product = products.find((p) => p._id.toString() === pid.toString());
+      const product = products.find(
+        (p) => p._id.toString() === pid.toString()
+      );
 
       if (!product) {
         missingProducts.push(pid);
@@ -191,10 +192,13 @@ exports.createOrder = async (req, res) => {
       const quantity = item.quantity || 1;
 
       return {
-        product: product._id,
-        name: product.name,
-        image: getProductImage(product),
-        color: item.color,
+        product:     product._id,
+        name:        product.name,
+        image:       getProductImage(product),
+        // ✅ productCode aur brand ab save honge
+        productCode: product.productCode || product.sku || "",
+        brand:       product.brand || "",
+        color:       item.color,
         size:
           typeof item.size === "string"
             ? item.size
@@ -202,7 +206,7 @@ exports.createOrder = async (req, res) => {
         mrp,
         salePrice,
         quantity,
-        lineTotal: salePrice * quantity,
+        lineTotal:    salePrice * quantity,
         lineMrpTotal: mrp * quantity,
       };
     });
@@ -224,11 +228,10 @@ exports.createOrder = async (req, res) => {
 
     const totals = calculateTotals(validOrderItems);
 
-    // 🔥 CRITICAL: Determine final payment status based on frontend input
-    let finalPaymentStatus = "PENDING";  // default
-    
+    // Determine final payment status
+    let finalPaymentStatus = "PENDING";
+
     if (paymentMethod === "ONLINE" && paymentStatus === "PAID") {
-      // Frontend has already verified payment via Razorpay
       finalPaymentStatus = "PAID";
       console.log("✅ Payment already verified by frontend, setting status to PAID");
     } else if (paymentMethod === "COD") {
@@ -254,7 +257,7 @@ exports.createOrder = async (req, res) => {
         addressType: shippingAddress.addressType || "home",
       },
       paymentMethod,
-      paymentStatus: finalPaymentStatus,  // 🔥 FIXED - Use determined status
+      paymentStatus: finalPaymentStatus,
       status: "PLACED",
       razorpayOrderId: razorpayOrderId || undefined,
       razorpayPaymentId: razorpayPaymentId || undefined,
@@ -277,25 +280,21 @@ exports.createOrder = async (req, res) => {
       user: user ? { name: user.name, email: user.email } : null,
     };
 
-    // 6) 🔥 SEND EMAILS BASED ON PAYMENT STATUS
+    // 6) Send emails
     try {
       if (finalPaymentStatus === "PAID") {
-        // Online payment already verified
         console.log("📧 Sending PAYMENT_SUCCESS and PLACED emails...");
         await sendOrderEmailToCustomer(orderForEmail, "PAYMENT_SUCCESS");
         await sendOrderEmailToCustomer(orderForEmail, "PLACED");
       } else {
-        // COD or pending payment
         console.log("📧 Sending PLACED email...");
         await sendOrderEmailToCustomer(orderForEmail, "PLACED");
       }
 
-      // Admin notification
       await sendNewOrderEmailToOwner(orderForEmail);
       console.log("📧 Admin notification sent");
     } catch (emailErr) {
       console.error("Email sending error:", emailErr);
-      // Don't fail order creation if email fails
     }
 
     return res.status(201).json(newOrder);

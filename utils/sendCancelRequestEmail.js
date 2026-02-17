@@ -5,7 +5,6 @@ const BRAND_COLOR = "#d63384";
 const TEXT_COLOR = "#333333";
 const ACCENT_BG = "#fff3f9";
 
-// ⚠️ Tumhari .env me Frontend_URL hai (capital F)
 const FRONTEND_URL = process.env.Frontend_URL || "http://localhost:3000";
 
 function formatINR(amount) {
@@ -13,7 +12,7 @@ function formatINR(amount) {
   return `₹ ${Number(amount).toFixed(2)}`;
 }
 
-// 🔹 ITEMS TABLE (PRODUCT NAME, BRAND, SIZE, COLOR DOT, QTY, PRICE, LINE TOTAL)
+// 🔹 ITEMS TABLE (PRODUCT NAME, PRODUCT CODE, BRAND, SIZE, COLOR DOT, QTY, PRICE, LINE TOTAL)
 const ITEMS_TABLE = (order) => {
   if (!order.items || !order.items.length) {
     return `
@@ -28,8 +27,16 @@ const ITEMS_TABLE = (order) => {
     .map((item) => {
       const name = item.name || item.productName || "Product";
       const brand = item.brand || item.productBrand || "";
+
       const brandLine = brand
         ? `<div style="font-size:11px; color:#777;">Brand: ${brand}</div>`
+        : "";
+
+      // ✅ Product Code line
+      const productCodeLine = item.productCode
+        ? `<div style="font-size:11px; color:#999; font-family:monospace; margin-top:2px;">
+             Code: ${item.productCode}
+           </div>`
         : "";
 
       const mrp = item.mrp;
@@ -67,6 +74,7 @@ const ITEMS_TABLE = (order) => {
               ${name}
             </div>
             ${brandLine}
+            ${productCodeLine}
             <div style="font-size:11px; color:#555; margin-top:2px;">
               ${sizeLabel} &nbsp; • &nbsp; ${colorLabel}
             </div>
@@ -142,7 +150,7 @@ const ORDER_SUMMARY = (order) => {
   `;
 };
 
-// 🔹 CUSTOMER DETAILS BLOCK (for admin + user view)
+// 🔹 CUSTOMER DETAILS BLOCK
 const CUSTOMER_DETAILS = (order) => {
   const u = order.user || {};
   const a = order.shippingAddress || {};
@@ -196,7 +204,7 @@ function buildCancelRequestHtml(order, isAdmin) {
           ${
             isAdmin
               ? `<strong>${userName}</strong> (${userEmail}) has requested to cancel order <strong>${orderLabel}</strong>.`
-              : `Hi ${userName},<br/>We’ve received your cancellation request for order <strong>${orderLabel}</strong>. Our team will review it and update your order status soon.`
+              : `Hi ${userName},<br/>We've received your cancellation request for order <strong>${orderLabel}</strong>. Our team will review it and update your order status soon.`
           }
         </p>
 

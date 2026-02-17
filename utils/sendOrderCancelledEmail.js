@@ -14,7 +14,7 @@ function formatINR(amount) {
   return `₹ ${Number(amount).toFixed(2)}`;
 }
 
-// 🔹 ITEMS TABLE (PRODUCT NAME, BRAND, SIZE, COLOR DOT, QTY, PRICE, LINE TOTAL)
+// 🔹 ITEMS TABLE (PRODUCT NAME, PRODUCT CODE, BRAND, SIZE, COLOR DOT, QTY, PRICE, LINE TOTAL)
 const ITEMS_TABLE = (order) => {
   if (!order.items || !order.items.length) {
     return `
@@ -27,14 +27,18 @@ const ITEMS_TABLE = (order) => {
 
   const rows = order.items
     .map((item) => {
-      const name =
-        item.name || item.productName || "Product";
-
-      const brand =
-        item.brand || item.productBrand || "";
+      const name = item.name || item.productName || "Product";
+      const brand = item.brand || item.productBrand || "";
 
       const brandLine = brand
         ? `<div style="font-size:11px; color:#777;">Brand: ${brand}</div>`
+        : "";
+
+      // ✅ Product Code line
+      const productCodeLine = item.productCode
+        ? `<div style="font-size:11px; color:#999; font-family:monospace; margin-top:2px;">
+             Code: ${item.productCode}
+           </div>`
         : "";
 
       const mrp = item.mrp;
@@ -75,6 +79,7 @@ const ITEMS_TABLE = (order) => {
               ${name}
             </div>
             ${brandLine}
+            ${productCodeLine}
             <div style="font-size:11px; color:#555; margin-top:2px;">
               ${sizeLabel} &nbsp; • &nbsp; ${colorLabel}
             </div>
@@ -173,7 +178,7 @@ const ORDER_SUMMARY = (order) => {
   `;
 };
 
-// 🔹 CUSTOMER DETAILS BLOCK (for both user + admin)
+// 🔹 CUSTOMER DETAILS BLOCK
 const CUSTOMER_DETAILS = (order, user) => {
   const a = order.shippingAddress || {};
   return `
@@ -203,9 +208,7 @@ const CUSTOMER_DETAILS = (order, user) => {
 
 function buildCancelledHtml(order, isAdmin, user) {
   const userName = user?.name || "Customer";
-
   const orderIdLabel = order.orderNumber || order._id;
-
   const orderLinkUser = `${FRONTEND_URL}/account/orders/${order._id}`;
   const orderLinkAdmin = `${ADMIN_ORDERS_URL}/${order._id}`;
 
@@ -274,7 +277,6 @@ async function sendOrderCancelledEmails(order, user) {
 
   const userEmail = user?.email;
 
-  // User email
   if (userEmail) {
     await transporter.sendMail({
       from: `"House of Intimacy" <${process.env.ADMIN_EMAIL}>`,
@@ -284,7 +286,6 @@ async function sendOrderCancelledEmails(order, user) {
     });
   }
 
-  // Admin email(s)
   if (adminEmails.length > 0) {
     await transporter.sendMail({
       from: `"House of Intimacy" <${process.env.ADMIN_EMAIL}>`,

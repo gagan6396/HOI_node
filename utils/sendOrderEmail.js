@@ -6,7 +6,7 @@ const TEXT_COLOR = "#333333";
 const ACCENT_BG = "#fff3f9";
 
 // Frontend base (track link ke liye)
-const FRONTEND_URL = process.env.Frontend_URL || "http://localhost:3000";
+const FRONTEND_URL = process.env.FRONTEND_BASE_URL || "http://localhost:3000";
 
 // ---- EMAIL WRAPPER (TABLE-BASED, EMAIL SAFE) ----
 const emailWrapper = (content, preheader = "") => `

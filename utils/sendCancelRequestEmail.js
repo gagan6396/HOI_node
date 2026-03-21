@@ -5,7 +5,7 @@ const BRAND_COLOR = "#d63384";
 const TEXT_COLOR = "#333333";
 const ACCENT_BG = "#fff3f9";
 
-const FRONTEND_URL = process.env.Frontend_URL || "http://localhost:3000";
+const FRONTEND_URL = process.env.FRONTEND_BASE_URL || "http://localhost:3000";
 
 function formatINR(amount) {
   if (!amount || isNaN(amount)) return "₹ 0.00";

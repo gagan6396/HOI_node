@@ -1,12 +1,20 @@
+// routes/paymentRoutes.js
 const express = require("express");
 const {
   createOrder,
-  verifyPayment,
+  handleHdfcResponse,
 } = require("../controllers/paymentController");
+const auth = require("../middleware/auth");
+
 
 const router = express.Router();
 
-router.post("/create-order", createOrder);
-router.post("/verify-payment", verifyPayment);
+// Called by frontend checkout page to get encrypted payload
+router.post("/create-order", auth,createOrder);
+
+
+// Called by HDFC after payment (success / failure / cancel)
+// express.urlencoded needed because HDFC POSTs form-encoded data
+router.post("/hdfc-response", express.urlencoded({ extended: true }), handleHdfcResponse);
 
 module.exports = router;

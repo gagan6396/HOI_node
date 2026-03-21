@@ -117,15 +117,13 @@ exports.createOrder = async (req, res) => {
       paymentMethod,
       notes,
       paymentStatus,
-      razorpayOrderId,
-      razorpayPaymentId,
+      transactionId,   // HDFC: TXN_timestamp_userId (replaces razorpayOrderId)
     } = req.body;
 
     console.log("📥 Received createOrder request:");
     console.log("- paymentMethod:", paymentMethod);
     console.log("- paymentStatus from frontend:", paymentStatus);
-    console.log("- razorpayOrderId:", razorpayOrderId);
-    console.log("- razorpayPaymentId:", razorpayPaymentId);
+    console.log("- transactionId:", transactionId);
 
     if (!items || !items.length) {
       return res.status(400).json({ message: "No items in order" });
@@ -195,7 +193,6 @@ exports.createOrder = async (req, res) => {
         product:     product._id,
         name:        product.name,
         image:       getProductImage(product),
-        // ✅ productCode aur brand ab save honge
         productCode: product.productCode || product.sku || "",
         brand:       product.brand || "",
         color:       item.color,
@@ -228,12 +225,15 @@ exports.createOrder = async (req, res) => {
 
     const totals = calculateTotals(validOrderItems);
 
-    // Determine final payment status
+    // ─── Determine final payment status ──────────────────────────────────────
+    // HDFC flow: order is created with PENDING status first (in createOrder)
+    // then handleHdfcResponse updates it to PAID after HDFC confirms payment.
+    // We keep PAID support here so COD delivered update still works.
     let finalPaymentStatus = "PENDING";
 
     if (paymentMethod === "ONLINE" && paymentStatus === "PAID") {
       finalPaymentStatus = "PAID";
-      console.log("✅ Payment already verified by frontend, setting status to PAID");
+      console.log("✅ Payment already verified, setting status to PAID");
     } else if (paymentMethod === "COD") {
       finalPaymentStatus = "PENDING";
       console.log("📦 COD order, payment status remains PENDING");
@@ -259,8 +259,7 @@ exports.createOrder = async (req, res) => {
       paymentMethod,
       paymentStatus: finalPaymentStatus,
       status: "PLACED",
-      razorpayOrderId: razorpayOrderId || undefined,
-      razorpayPaymentId: razorpayPaymentId || undefined,
+      transactionId: transactionId || undefined,  // HDFC transactionId (replaces razorpayOrderId)
       ...totals,
       totalSavings: totals.discountTotal,
       notes,
@@ -269,6 +268,7 @@ exports.createOrder = async (req, res) => {
     console.log("✅ Order created:", newOrder._id);
     console.log("   - Payment Method:", newOrder.paymentMethod);
     console.log("   - Payment Status:", newOrder.paymentStatus);
+    console.log("   - Transaction ID:", newOrder.transactionId);
 
     // 4) Save address to user
     await ensureAddressSavedForUser(userId, shippingAddress);

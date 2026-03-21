@@ -5,7 +5,7 @@ const BRAND_COLOR = "#d63384";
 const TEXT_COLOR = "#333333";
 const ACCENT_BG = "#fff3f9";
 
-const FRONTEND_URL = process.env.Frontend_URL || "http://localhost:3000";
+const FRONTEND_URL = process.env.FRONTEND_BASE_URL || "http://localhost:3000";
 const ADMIN_ORDERS_URL =
   process.env.ADMIN_ORDERS_URL || `${FRONTEND_URL}/admin/orders`;
 

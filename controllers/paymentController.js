@@ -17,7 +17,7 @@ const HDFC_MERCHANT_ID       = process.env.HDFC_MERCHANT_ID;
 const HDFC_PAYMENT_CLIENT_ID = process.env.HDFC_PAYMENT_CLIENT_ID; // "hdfcmaster" for UAT
 const HDFC_KEY_UUID          = process.env.HDFC_KEY_UUID;
 const HDFC_BASE_URL          = process.env.HDFC_BASE_URL; // https://smartgateway.hdfcuat.bank.in
-const FRONTEND_BASE_URL      = process.env.Frontend_URL;  // http://localhost:3000
+const FRONTEND_BASE_URL      = process.env.FRONTEND_BASE_URL;  // http://localhost:3000
 const BACKEND_BASE_URL       = process.env.BACKEND_BASE_URL; // http://localhost:8000/v1
 
 // ─── JUSPAY SDK INIT ──────────────────────────────────────────────────────────

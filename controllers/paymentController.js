@@ -12,18 +12,21 @@ const {
   sendNewOrderEmailToOwner,
 } = require("../utils/sendOrderEmail");
 
-
 // ─── ENV ──────────────────────────────────────────────────────────────────────
-const HDFC_MERCHANT_ID       = process.env.HDFC_MERCHANT_ID;
+const HDFC_MERCHANT_ID = process.env.HDFC_MERCHANT_ID;
 const HDFC_PAYMENT_CLIENT_ID = process.env.HDFC_PAYMENT_CLIENT_ID; // "hdfcmaster" for UAT
-const HDFC_KEY_UUID          = process.env.HDFC_KEY_UUID;
-const HDFC_BASE_URL          = process.env.HDFC_BASE_URL; // https://smartgateway.hdfcuat.bank.in
-const FRONTEND_BASE_URL      = process.env.FRONTEND_BASE_URL;  // http://localhost:3000
-const BACKEND_BASE_URL       = process.env.BACKEND_BASE_URL; // http://localhost:8000/v1
+const HDFC_KEY_UUID = process.env.HDFC_KEY_UUID;
+const HDFC_BASE_URL = process.env.HDFC_BASE_URL; // https://smartgateway.hdfcuat.bank.in
+const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL; // http://localhost:3000
+const BACKEND_BASE_URL = process.env.BACKEND_BASE_URL; // http://localhost:8000/v1
 
 // ─── JUSPAY SDK INIT ──────────────────────────────────────────────────────────
-const publicKey  = fs.readFileSync(path.resolve(process.env.HDFC_PUBLIC_KEY_PATH));
-const privateKey = fs.readFileSync(path.resolve(process.env.HDFC_PRIVATE_KEY_PATH));
+const publicKey = fs.readFileSync(
+  path.resolve(process.env.HDFC_PUBLIC_KEY_PATH)
+);
+const privateKey = fs.readFileSync(
+  path.resolve(process.env.HDFC_PRIVATE_KEY_PATH)
+);
 
 const juspay = new Juspay({
   merchantId: HDFC_MERCHANT_ID,
@@ -63,13 +66,13 @@ const calculateTotals = (items) => {
   let itemsTotal = 0;
 
   items.forEach((item) => {
-    mrpTotal   += item.lineMrpTotal;
+    mrpTotal += item.lineMrpTotal;
     itemsTotal += item.lineTotal;
   });
 
   const discountTotal = mrpTotal - itemsTotal;
-  const shippingFee   = itemsTotal >= 999 ? 0 : 60;
-  const grandTotal    = itemsTotal + shippingFee;
+  const shippingFee = itemsTotal >= 999 ? 0 : 60;
+  const grandTotal = itemsTotal + shippingFee;
 
   return { mrpTotal, itemsTotal, discountTotal, shippingFee, grandTotal };
 };
@@ -108,11 +111,15 @@ const createOrder = async (req, res) => {
       !shippingAddress.state ||
       !shippingAddress.pincode
     ) {
-      return res.status(400).json({ message: "Complete shipping address is required." });
+      return res
+        .status(400)
+        .json({ message: "Complete shipping address is required." });
     }
 
     if (!customerName || !customerPhone) {
-      return res.status(400).json({ message: "customerName and customerPhone are required." });
+      return res
+        .status(400)
+        .json({ message: "customerName and customerPhone are required." });
     }
 
     // ── Resolve products from DB ──────────────────────────────────────────────
@@ -120,7 +127,8 @@ const createOrder = async (req, res) => {
 
     if (productIds.some((id) => !id)) {
       return res.status(400).json({
-        message: "One or more cart items are missing productId. Please refresh your cart.",
+        message:
+          "One or more cart items are missing productId. Please refresh your cart.",
       });
     }
 
@@ -128,7 +136,7 @@ const createOrder = async (req, res) => {
 
     const missingProducts = [];
     const orderItems = items.map((item, idx) => {
-      const pid     = productIds[idx];
+      const pid = productIds[idx];
       const product = products.find((p) => p._id.toString() === pid.toString());
 
       if (!product) {
@@ -136,29 +144,33 @@ const createOrder = async (req, res) => {
         return null;
       }
 
-      const mrp       = product.price?.mrp || product.mrp;
+      const mrp = product.price?.mrp || product.mrp;
       const salePrice = product.price?.sale || product.salePrice || mrp;
-      const quantity  = item.quantity || 1;
+      const quantity = item.quantity || 1;
 
       return {
-        product:      product._id,
-        name:         product.name,
-        image:        getProductImage(product),
-        productCode:  product.productCode || product.sku || "",
-        brand:        product.brand || "",
-        color:        item.color,
-        size:         typeof item.size === "string" ? item.size : item.size?.label || undefined,
+        product: product._id,
+        name: product.name,
+        image: getProductImage(product),
+        productCode: product.productCode || product.sku || "",
+        brand: product.brand || "",
+        color: item.color,
+        size:
+          typeof item.size === "string"
+            ? item.size
+            : item.size?.label || undefined,
         mrp,
         salePrice,
         quantity,
-        lineTotal:    salePrice * quantity,
+        lineTotal: salePrice * quantity,
         lineMrpTotal: mrp * quantity,
       };
     });
 
     if (missingProducts.length > 0) {
       return res.status(400).json({
-        message: "Some products in your cart are no longer available. Please refresh your cart.",
+        message:
+          "Some products in your cart are no longer available. Please refresh your cart.",
       });
     }
 
@@ -174,58 +186,70 @@ const createOrder = async (req, res) => {
 
     // ── Save Order to DB with PENDING status BEFORE calling Juspay ───────────
     const newOrder = await Orders.create({
-      user:          userId,
-      items:         validOrderItems,
+      user: userId,
+      items: validOrderItems,
       shippingAddress: {
-        name:         shippingAddress.name,
-        phone:        shippingAddress.phone,
-        pincode:      shippingAddress.pincode,
+        name: shippingAddress.name,
+        phone: shippingAddress.phone,
+        pincode: shippingAddress.pincode,
         addressLine1: shippingAddress.addressLine1,
         addressLine2: shippingAddress.addressLine2,
-        city:         shippingAddress.city,
-        state:        shippingAddress.state,
-        landmark:     shippingAddress.landmark,
-        addressType:  shippingAddress.addressType || "home",
+        city: shippingAddress.city,
+        state: shippingAddress.state,
+        landmark: shippingAddress.landmark,
+        addressType: shippingAddress.addressType || "home",
       },
-      paymentMethod:  "ONLINE",
-      paymentStatus:  "PENDING",
-      status:         "PLACED",
-      transactionId:  orderId,
+      paymentMethod: "ONLINE",
+      paymentStatus: "PENDING",
+      status: "PLACED",
+      transactionId: orderId,
       ...totals,
       totalSavings: totals.discountTotal,
     });
 
-    console.log("✅ Pending order created:", newOrder._id, "| orderId:", orderId);
+    console.log(
+      "✅ Pending order created:",
+      newOrder._id,
+      "| orderId:",
+      orderId
+    );
 
     // ── Call Juspay Session API ───────────────────────────────────────────────
     const returnUrl = `${BACKEND_BASE_URL}/payment/hdfc-response`;
 
     const sessionResponse = await juspay.orderSession.create({
-      order_id:              orderId,
-      amount:                parseFloat(totals.grandTotal).toFixed(2),
+      order_id: orderId,
+      amount: parseFloat(totals.grandTotal).toFixed(2),
       payment_page_client_id: HDFC_PAYMENT_CLIENT_ID,
-      customer_id:           userId.toString(),
-      customer_email:        customerEmail || "",
-      customer_phone:        customerPhone,
-      first_name:            customerName.split(" ")[0] || customerName,
-      last_name:             customerName.split(" ").slice(1).join(" ") || "",
-      action:                "paymentPage",
-      return_url:            returnUrl,
-      currency:              "INR",
+      customer_id: userId.toString(),
+      customer_email: customerEmail || "",
+      customer_phone: customerPhone,
+      first_name: customerName.split(" ")[0] || customerName,
+      last_name: customerName.split(" ").slice(1).join(" ") || "",
+      action: "paymentPage",
+      return_url: returnUrl,
+      currency: "INR",
     });
 
-    console.log("✅ Juspay session created, payment link:", sessionResponse.payment_links?.web);
+    console.log(
+      "✅ Juspay session created, payment link:",
+      sessionResponse.payment_links?.web
+    );
 
     // payment_links.web is the URL to redirect user to
     const paymentLink = sessionResponse.payment_links?.web;
 
     if (!paymentLink) {
-      console.error("Juspay session response missing payment link:", sessionResponse);
-      return res.status(500).json({ message: "Failed to get payment link from HDFC." });
+      console.error(
+        "Juspay session response missing payment link:",
+        sessionResponse
+      );
+      return res
+        .status(500)
+        .json({ message: "Failed to get payment link from HDFC." });
     }
 
     return res.status(200).json({ paymentUrl: paymentLink });
-
   } catch (error) {
     if (error instanceof APIError) {
       console.error("Juspay API error:", error.message);
@@ -250,12 +274,14 @@ const handleHdfcResponse = async (req, res) => {
 
     if (!orderId) {
       console.error("HDFC response: missing order_id");
-      return res.redirect(`${FRONTEND_BASE_URL}/order/failed?reason=missing_order_id`);
+      return res.redirect(
+        `${FRONTEND_BASE_URL}/order/failed?reason=missing_order_id`
+      );
     }
 
     // ── Server-to-Server Order Status call (mandatory per HDFC docs) ──────────
     const statusResponse = await juspay.order.status(orderId);
-    const orderStatus    = statusResponse.status;
+    const orderStatus = statusResponse.status;
 
     console.log("Juspay order status for", orderId, ":", orderStatus);
 
@@ -264,7 +290,7 @@ const handleHdfcResponse = async (req, res) => {
       const updatedOrder = await Orders.findOneAndUpdate(
         { transactionId: orderId },
         {
-          paymentStatus:  "PAID",
+          paymentStatus: "PAID",
           hdfcTrackingId: statusResponse.txn_id || statusResponse.id || "",
         },
         { new: true }
@@ -272,7 +298,9 @@ const handleHdfcResponse = async (req, res) => {
 
       if (!updatedOrder) {
         console.warn("⚠️  Order not found for orderId:", orderId);
-        return res.redirect(`${FRONTEND_BASE_URL}/order-success?ref=${orderId}`);
+        return res.redirect(
+          `${FRONTEND_BASE_URL}/order-success?ref=${orderId}`
+        );
       }
 
       // Send confirmation emails
@@ -286,18 +314,23 @@ const handleHdfcResponse = async (req, res) => {
         console.error("Email error after HDFC success:", emailErr);
       }
 
-      return res.redirect(`${FRONTEND_BASE_URL}/order-success/${updatedOrder._id}`);
-
+      return res.redirect(
+        `${FRONTEND_BASE_URL}/order-success/${updatedOrder._id}`
+      );
     } else if (orderStatus === "PENDING" || orderStatus === "PENDING_VBV") {
       // ⏳ Payment still pending
       console.warn("Payment pending for order:", orderId);
       return res.redirect(
         `${FRONTEND_BASE_URL}/order-result?status=pending&orderId=${orderId}`
       );
-
     } else {
       // ❌ AUTHORIZATION_FAILED, AUTHENTICATION_FAILED, etc.
-      console.warn("Payment failed for order:", orderId, "| status:", orderStatus);
+      console.warn(
+        "Payment failed for order:",
+        orderId,
+        "| status:",
+        orderStatus
+      );
 
       await Orders.findOneAndUpdate(
         { transactionId: orderId },
@@ -306,17 +339,20 @@ const handleHdfcResponse = async (req, res) => {
       ).catch((err) => console.error("Order FAILED update error:", err));
 
       return res.redirect(
-        `${FRONTEND_BASE_URL}/order-result?status=failed&reason=${encodeURIComponent(orderStatus)}`
+        `${FRONTEND_BASE_URL}/order-result?status=failed&reason=${encodeURIComponent(
+          orderStatus
+        )}`
       );
     }
-
   } catch (error) {
     if (error instanceof APIError) {
       console.error("Juspay status API error:", error.message);
     } else {
       console.error("handleHdfcResponse error:", error);
     }
-    return res.redirect(`${FRONTEND_BASE_URL}/order-result?status=failed&reason=server_error`);
+    return res.redirect(
+      `${FRONTEND_BASE_URL}/order-result?status=failed&reason=server_error`
+    );
   }
 };
 
